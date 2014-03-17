@@ -208,6 +208,13 @@ exclude-rx-from= skip --exclude-rx patterns in file (may be repeated)
 v,verbose  increase log output (can be used more than once)
 x,xdev,one-file-system  don't cross filesystem boundaries
 """
+
+is_reverse = os.environ.get('BUP_SERVER_REVERSE')
+if is_reverse:
+    orig_stderr = sys.stderr
+    sys.stderr = TaggedOutput(orig_stderr, 'e')
+    sys.stdout = TaggedOutput(orig_stderr, 'o')
+
 o = options.Options(optspec)
 (opt, flags, extra) = o.parse(sys.argv[1:])
 

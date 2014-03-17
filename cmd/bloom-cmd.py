@@ -128,6 +128,12 @@ def do_bloom(path, outfilename):
         os.rename(tfname, outfilename)
 
 
+is_reverse = os.environ.get('BUP_SERVER_REVERSE')
+if is_reverse:
+    orig_stderr = sys.stderr
+    sys.stderr = TaggedOutput(orig_stderr, 'e')
+    sys.stdout = TaggedOutput(orig_stderr, 'o')
+
 handle_ctrl_c()
 
 o = options.Options(optspec)

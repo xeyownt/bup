@@ -30,6 +30,13 @@ fanout=    average number of blobs in a single tree
 bwlimit=   maximum bytes/sec to transmit to server
 #,compress=  set compression level to # (0-9, 9 is highest) [1]
 """
+
+is_reverse = os.environ.get('BUP_SERVER_REVERSE')
+if is_reverse:
+    orig_stderr = sys.stderr
+    sys.stderr = TaggedOutput(orig_stderr, 'e')
+    sys.stdout = TaggedOutput(orig_stderr, 'o')
+
 o = options.Options(optspec)
 (opt, flags, extra) = o.parse(sys.argv[1:])
 
@@ -74,8 +81,6 @@ def prog(filenum, nbytes):
     else:
         qprogress('Splitting: %d kbytes\r' % (total_bytes/1024))
 
-
-is_reverse = os.environ.get('BUP_SERVER_REVERSE')
 if is_reverse and opt.remote:
     o.fatal("don't use -r in reverse mode; it's automatic")
 start_time = time.time()

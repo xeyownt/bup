@@ -10,6 +10,7 @@ from bup import _helpers
 import bup._helpers as _helpers
 import math
 
+
 # This function should really be in helpers, not in bup.options.  But we
 # want options.py to be standalone so people can include it in other projects.
 from bup.options import _tty_width
@@ -42,6 +43,57 @@ except AttributeError:
     fdatasync = os.fsync
 
 
+class TaggedOutput:
+    # Unflushed instances must not outlive their destination file.
+    def __init__(self, out, tag):
+        self._file = out
+        self._tag = tag
+        self._buf = []
+
+    def __del__(self):
+        self.flush()
+
+    def fileno(self):
+        return self._file.fileno()
+
+    def _write_pending(self, write_fn=None):
+        if self._buf:
+            if not write_fn:
+                write_fn = self._file.write
+            write_fn(self._tag + '_ ')
+            for b in self._buf:
+                write_fn(b)
+            self._buf = []
+            write_fn('\n')
+
+    def write(self, x, write_fn=None, buffer=True):
+        if x:
+            if not write_fn:
+                write_fn = self._file.write
+            if '\n' not in x:
+                self._buf.append(x)
+            else:
+                write_fn(self._tag + 'n ')
+                for b in self._buf:
+                    write_fn(b)
+                self._buf = []
+                lines = x.split('\n')
+                write_fn(lines[0])
+                write_fn('\n')
+                for line in lines[1:-1]:
+                    write_fn(self._tag + 'n ')
+                    write_fn(line)
+                    write_fn('\n')
+                if lines[-1]:  # No final newline.
+                    self._buf.append(lines[-1])
+        if not buffer:
+            self._write_pending(write_fn=write_fn)
+
+    def flush(self):
+        self._write_pending()
+        self._file.flush()
+
+
 # Write (blockingly) to sockets that may or may not be in blocking mode.
 # We need this because our stderr is sometimes eaten by subprocesses
 # (probably ssh) that sometimes make it nonblocking, if only temporarily,
@@ -65,7 +117,11 @@ def log(s):
     """Print a log message to stderr."""
     global _last_prog
     sys.stdout.flush()
-    _hard_write(sys.stderr.fileno(), s)
+    if isinstance(sys.stderr, TaggedOutput):
+        wr = lambda(x): _hard_write(sys.stderr.fileno(), x)
+        sys.stderr.write(s, write_fn=wr, buffer=False)
+    else:
+        _hard_write(sys.stderr.fileno(), s)
     _last_prog = 0
 
 

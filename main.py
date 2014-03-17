@@ -26,6 +26,12 @@ os.environ['BUP_RESOURCE_PATH'] = resourcepath
 from bup import helpers
 from bup.helpers import *
 
+is_reverse = os.environ.get('BUP_SERVER_REVERSE')
+if is_reverse:
+    orig_stderr = sys.stderr
+    sys.stderr = TaggedOutput(orig_stderr, 'e')
+    sys.stdout = TaggedOutput(orig_stderr, 'o')
+
 # after running 'bup newliner', the tty_width() ioctl won't work anymore
 os.environ['WIDTH'] = str(tty_width())
 

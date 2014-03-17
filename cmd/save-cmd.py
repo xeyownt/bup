@@ -26,6 +26,13 @@ strip-path= path-prefix to be stripped when saving
 graft=     a graft point *old_path*=*new_path* (can be used more than once)
 #,compress=  set compression level to # (0-9, 9 is highest) [1]
 """
+
+is_reverse = os.environ.get('BUP_SERVER_REVERSE')
+if is_reverse:
+    orig_stderr = sys.stderr
+    sys.stderr = TaggedOutput(orig_stderr, 'e')
+    sys.stdout = TaggedOutput(orig_stderr, 'o')
+
 o = options.Options(optspec)
 (opt, flags, extra) = o.parse(sys.argv[1:])
 
@@ -66,7 +73,6 @@ if opt.graft:
                 o.fatal("a graft point cannot be empty")
             graft_points.append((realpath(old_path), realpath(new_path)))
 
-is_reverse = os.environ.get('BUP_SERVER_REVERSE')
 if is_reverse and opt.remote:
     o.fatal("don't use -r in reverse mode; it's automatic")
 

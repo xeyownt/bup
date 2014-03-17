@@ -1,4 +1,5 @@
 import helpers
+from cStringIO import StringIO
 import math
 import os
 import os.path
@@ -177,3 +178,35 @@ def test_atomically_replaced_file():
 
     if wvfailure_count() == initial_failures:
         subprocess.call(['rm', '-rf', tmpdir])
+
+
+@wvtest
+def test_prefixed_output():
+    out = StringIO()
+    fixer = TaggedOutput(out, 'x')
+    fixer.write('foo')
+    WVPASSEQ(out.getvalue(), '')
+    fixer.write('')
+    WVPASSEQ(out.getvalue(), '')
+    fixer.write('\n')
+    WVPASSEQ(out.getvalue(), 'xn foo\n')
+
+    out = StringIO()
+    fixer = TaggedOutput(out, 'x')
+    fixer.write('foo')
+    fixer.flush()
+    WVPASSEQ(out.getvalue(), 'x_ foo\n')
+
+    out = StringIO()
+    fixer = TaggedOutput(out, 'x')
+    fixer.write('foo\nbar')
+    WVPASSEQ(out.getvalue(), 'xn foo\n')
+    fixer.flush()
+    WVPASSEQ(out.getvalue(), 'xn foo\nx_ bar\n')
+
+    out = StringIO()
+    fixer = TaggedOutput(out, 'x')
+    fixer.write('\n')
+    WVPASSEQ(out.getvalue(), 'xn \n')
+    fixer.write('bar\n\n')
+    WVPASSEQ(out.getvalue(), 'xn \nxn bar\nxn \n')
