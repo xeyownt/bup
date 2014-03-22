@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 import os, sys, struct
-from bup import options, git
+from bup import options, git, vfs, vint
 from bup.helpers import *
 
 suspended_w = None
@@ -135,6 +135,23 @@ def read_ref(conn, refname):
     conn.ok()
 
 
+def path_info(conn, junk):
+    _init_session()
+    n = vint.read_vuint(conn)
+    paths = []
+    for i in range(n):
+        paths.append(vint.read_bvec(conn))
+    result = vfs.path_info(paths, vfs.RefList(None))
+    assert(len(result) == len(paths))
+    for item in result:
+        if item:
+            name, id, type = item
+            vint.write_bvec(conn, vint.pack('sss', name, id, type))
+        else:
+            vint.write_bvec(conn, '')
+    conn.ok()
+
+
 def update_ref(conn, refname):
     _init_session()
     newval = conn.readline().strip()
@@ -182,6 +199,7 @@ commands = {
     'send-index': send_index,
     'receive-objects-v2': receive_objects_v2,
     'read-ref': read_ref,
+    'path-info' : path_info,
     'update-ref': update_ref,
     'cat': cat,
 }
