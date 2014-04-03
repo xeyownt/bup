@@ -1,10 +1,26 @@
 import struct, os, tempfile, time
+from subprocess import check_call
 from bup import git
 from bup.helpers import *
 from wvtest import *
 
-bup_tmp = os.path.realpath('../../../t/tmp')
+
+def ex(*cmd):
+    cmd_str = ' '.join(cmd)
+    print >> sys.stderr, cmd_str
+    check_call(cmd)
+
+def exo(*cmd):
+    cmd_str = ' '.join(cmd)
+    print >> sys.stderr, cmd_str
+    return readpipe(cmd)
+
+
+top_dir = os.path.realpath('../../..')
+bup_exe = top_dir + '/bup'
+bup_tmp = os.path.realpath(top_dir + '/t/tmp')
 mkdirp(bup_tmp)
+
 
 @wvtest
 def testmangle():
@@ -54,7 +70,7 @@ def testencode():
 def testpacks():
     initial_failures = wvfailure_count()
     tmpdir = tempfile.mkdtemp(dir=bup_tmp, prefix='bup-tgit-')
-    os.environ['BUP_MAIN_EXE'] = bupmain = '../../../bup'
+    os.environ['BUP_MAIN_EXE'] = bup_exe
     os.environ['BUP_DIR'] = bupdir = tmpdir + "/bup"
     git.init_repo(bupdir)
     git.verbose = 1
@@ -100,7 +116,7 @@ def testpacks():
 def test_pack_name_lookup():
     initial_failures = wvfailure_count()
     tmpdir = tempfile.mkdtemp(dir=bup_tmp, prefix='bup-tgit-')
-    os.environ['BUP_MAIN_EXE'] = bupmain = '../../../bup'
+    os.environ['BUP_MAIN_EXE'] = bup_exe
     os.environ['BUP_DIR'] = bupdir = tmpdir + "/bup"
     git.init_repo(bupdir)
     git.verbose = 1
@@ -129,7 +145,7 @@ def test_pack_name_lookup():
 def test_long_index():
     initial_failures = wvfailure_count()
     tmpdir = tempfile.mkdtemp(dir=bup_tmp, prefix='bup-tgit-')
-    os.environ['BUP_MAIN_EXE'] = bupmain = '../../../bup'
+    os.environ['BUP_MAIN_EXE'] = bup_exe
     os.environ['BUP_DIR'] = bupdir = tmpdir + "/bup"
     git.init_repo(bupdir)
     w = git.PackWriter()
@@ -247,5 +263,58 @@ def test_commit_parsing():
         WVPASSEQ(commit_items.parents, [commit])
     finally:
         os.chdir(orig_cwd)
+    if wvfailure_count() == initial_failures:
+        subprocess.call(['rm', '-rf', tmpdir])
+
+
+@wvtest
+def test_list_refs():
+    initial_failures = wvfailure_count()
+    tmpdir = tempfile.mkdtemp(dir=bup_tmp, prefix='bup-tgit-')
+    os.environ['BUP_MAIN_EXE'] = bup_exe
+    os.environ['BUP_DIR'] = bupdir = tmpdir + "/bup"
+    src = tmpdir + '/src'
+    mkdirp(src)
+    with open(src + '/1', 'w+') as f:
+        print f, 'something'
+    with open(src + '/2', 'w+') as f:
+        print f, 'something else'
+    git.init_repo(bupdir)
+    emptyset = frozenset()
+    WVPASSEQ(frozenset(git.list_refs()), emptyset)
+    WVPASSEQ(frozenset(git.list_refs(limit_to_tags=True)), emptyset)
+    WVPASSEQ(frozenset(git.list_refs(limit_to_heads=True)), emptyset)
+    ex(bup_exe, 'index', src)
+    ex(bup_exe, 'save', '-n', 'src', '--strip', src)
+    src_hash = exo('git', '--git-dir', bupdir,
+                   'rev-parse', 'src').strip().split('\n')
+    assert(len(src_hash) == 1)
+    src_hash = src_hash[0].decode('hex')
+    tree_hash = exo('git', '--git-dir', bupdir,
+                   'rev-parse', 'src:').strip().split('\n')[0].decode('hex')
+    blob_hash = exo('git', '--git-dir', bupdir,
+                   'rev-parse', 'src:1').strip().split('\n')[0].decode('hex')
+    WVPASSEQ(frozenset(git.list_refs()),
+             frozenset([('refs/heads/src', src_hash)]))
+    WVPASSEQ(frozenset(git.list_refs(limit_to_tags=True)), emptyset)
+    WVPASSEQ(frozenset(git.list_refs(limit_to_heads=True)),
+             frozenset([('refs/heads/src', src_hash)]))
+    ex('git', '--git-dir', bupdir, 'tag', 'commit-tag', 'src')
+    WVPASSEQ(frozenset(git.list_refs()),
+             frozenset([('refs/heads/src', src_hash),
+                        ('refs/tags/commit-tag', src_hash)]))
+    WVPASSEQ(frozenset(git.list_refs(limit_to_tags=True)),
+             frozenset([('refs/tags/commit-tag', src_hash)]))
+    WVPASSEQ(frozenset(git.list_refs(limit_to_heads=True)),
+             frozenset([('refs/heads/src', src_hash)]))
+    ex('git', '--git-dir', bupdir, 'tag', 'tree-tag', 'src:')
+    ex('git', '--git-dir', bupdir, 'tag', 'blob-tag', 'src:1')
+    os.unlink(bupdir + '/refs/heads/src')
+    expected_tags = frozenset([('refs/tags/commit-tag', src_hash),
+                               ('refs/tags/tree-tag', tree_hash),
+                               ('refs/tags/blob-tag', blob_hash)])
+    WVPASSEQ(frozenset(git.list_refs()), expected_tags)
+    WVPASSEQ(frozenset(git.list_refs(limit_to_heads=True)), frozenset([]))
+    WVPASSEQ(frozenset(git.list_refs(limit_to_tags=True)), expected_tags)
     if wvfailure_count() == initial_failures:
         subprocess.call(['rm', '-rf', tmpdir])
