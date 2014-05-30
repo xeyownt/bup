@@ -852,6 +852,28 @@ def should_rx_exclude_path(path, exclude_rxs):
     return False
 
 
+def parse_owner_mappings(type, options, fatal):
+    """Traverse the options and parse all --map-TYPEs, or call Option.fatal()."""
+    opt_name = '--map-' + type
+    value_rx = r'^([^=]+)=([^=]*)$'
+    if type in ('uid', 'gid'):
+        value_rx = r'^(-?[0-9]+)=(-?[0-9]+)$'
+    owner_map = {}
+    for flag in options:
+        (option, parameter) = flag
+        if option != opt_name:
+            continue
+        match = re.match(value_rx, parameter)
+        if not match:
+            raise fatal("couldn't parse %s as %s mapping" % (parameter, type))
+        old_id, new_id = match.groups()
+        if type in ('uid', 'gid'):
+            old_id = int(old_id)
+            new_id = int(new_id)
+        owner_map[old_id] = new_id
+    return owner_map
+
+
 # FIXME: Carefully consider the use of functions (os.path.*, etc.)
 # that resolve against the current filesystem in the strip/graft
 # functions for example, but elsewhere as well.  I suspect bup's not

@@ -72,28 +72,6 @@ def create_path(n, fullname, meta):
             os.symlink(n.readlink(), fullname)
 
 
-def parse_owner_mappings(type, options, fatal):
-    """Traverse the options and parse all --map-TYPEs, or call Option.fatal()."""
-    opt_name = '--map-' + type
-    value_rx = r'^([^=]+)=([^=]*)$'
-    if type in ('uid', 'gid'):
-        value_rx = r'^(-?[0-9]+)=(-?[0-9]+)$'
-    owner_map = {}
-    for flag in options:
-        (option, parameter) = flag
-        if option != opt_name:
-            continue
-        match = re.match(value_rx, parameter)
-        if not match:
-            raise fatal("couldn't parse %s as %s mapping" % (parameter, type))
-        old_id, new_id = match.groups()
-        if type in ('uid', 'gid'):
-            old_id = int(old_id)
-            new_id = int(new_id)
-        owner_map[old_id] = new_id
-    return owner_map
-
-
 def apply_metadata(meta, name, restore_numeric_ids, owner_map):
     m = copy.deepcopy(meta)
     m.user = owner_map['user'].get(m.user, m.user)

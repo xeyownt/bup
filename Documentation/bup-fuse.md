@@ -47,6 +47,18 @@ should unmount it with `umount`(8).
     performance, and note that any timestamps before 1970-01-01 UTC
     (i.e. before the Unix epoch) will be presented as 1970-01-01 UTC.
 
+\--map-uid *old*=*new*
+:   for every path, present the *old* (saved) uid as *new*, unless
+    countermanded by a subsequent "--map-uid *old*=..." option.  Note
+    that if "--meta" is not specified, the only *old* uid that will
+    match is 0.
+
+\--map-gid *old*=*new*
+:   for every path, present the *old* (saved) gid as *new*, unless
+    countermanded by a subsequent "--map-gid *old*=..." option.  Note
+    that if "--meta" is not specified, the only *old* gid that will
+    match is 0.
+
 # EXAMPLES
     rm -rf /tmp/buptest
     mkdir /tmp/buptest

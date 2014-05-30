@@ -8,6 +8,8 @@ except ImportError:
     log('error: cannot find the python "fuse" module; please install it\n')
     sys.exit(1)
 
+owner_map = {}
+
 
 class Stat(fuse.Stat):
     def __init__(self):
@@ -58,6 +60,7 @@ class BupFs(fuse.Fuse):
         self.meta = meta
     
     def getattr(self, path):
+        global owner_map
         log('--getattr(%r)\n' % path)
         try:
             node = cache_get(self.top, path)
@@ -74,6 +77,8 @@ class BupFs(fuse.Fuse):
                     st.st_atime = max(0, xstat.fstime_floor_secs(m.atime))
                     st.st_mtime = max(0, xstat.fstime_floor_secs(m.mtime))
                     st.st_ctime = max(0, xstat.fstime_floor_secs(m.ctime))
+            st.st_uid = owner_map['uid'].get(st.st_uid, st.st_uid)
+            st.st_gid = owner_map['gid'].get(st.st_gid, st.st_gid)
             return st
         except vfs.NoSuchFile:
             return -errno.ENOENT
@@ -121,6 +126,8 @@ bup fuse [-d] [-f] <mountpoint>
 d,debug   increase debug level
 f,foreground  run in foreground
 o,allow-other allow other users to access the filesystem
+map-uid=    given OLD=NEW, present OLD uid as NEW uid in the mounted filesystem
+map-gid=    given OLD=NEW, present OLD gid as NEW gid in the mounted filesystem
 meta          report original metadata for paths when available
 """
 o = options.Options(optspec)
@@ -128,6 +135,9 @@ o = options.Options(optspec)
 
 if len(extra) != 1:
     o.fatal("exactly one argument expected")
+
+for map_type in ('uid', 'gid'):
+    owner_map[map_type] = parse_owner_mappings(map_type, flags, o.fatal)
 
 git.check_repo_or_die()
 top = vfs.RefList(None)
