@@ -9,7 +9,14 @@ top="$(WVPASS /bin/pwd)" || exit $?
 tmpdir="$(WVPASS wvmktempdir)" || exit $?
 export BUP_DIR="$tmpdir/bup"
 
-bup() { "$top/bup" "$@"; }
+gc_log="$tmpdir/gc.log"
+
+bup()
+{
+    "$top/bup" "$@" || return $?
+    test -z "$bup_test_quash_gc" || return 0
+    (BUP_JUST_GC=yes "$top/bup" "$@" >> "$gc_log" 2>&1)
+}
 
 WVPASS cd "$tmpdir"
 
@@ -126,6 +133,8 @@ WVPASS bup save -r ":$BUP_DIR" -n r-test $D
 WVFAIL bup save -r ":$BUP_DIR/fake/path" -n r-test $D
 WVFAIL bup save -r ":$BUP_DIR" -n r-test $D/fake/path
 
+bup_test_quash_gc=true
+
 WVSTART "split"
 WVPASS echo a >a.tmp
 WVPASS echo b >b.tmp
@@ -222,6 +231,8 @@ WVSTART "save/git-fsck"
         WVPASS wc -l) || exit $?
     WVPASS [ "$n" -eq 0 ]
 ) || exit $?
+
+unset bup_test_quash_gc
 
 WVSTART "restore"
 WVPASS force-delete buprestore.tmp
