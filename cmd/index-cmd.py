@@ -115,6 +115,19 @@ def update_index(top, excluded_paths, exclude_rxs, xdev_exceptions):
                     hlinks.del_path(rig.cur.name)
             rig.next()
         if rig.cur and rig.cur.name == path:    # paths that already existed
+            if opt.fake_valid:
+                rig.cur.gitmode, rig.cur.sha = hashgen(path)
+                rig.cur.flags |= index.IX_HASHVALID
+                rig.cur.repack()
+                rig.next()
+                continue
+
+            stale = opt.fake_invalid \
+                    or rig.cur.stale(pst, tstart, check_device=opt.check_device)
+            if not stale:
+                rig.next()
+                continue
+
             try:
                 meta = metadata.from_path(path, statinfo=pst)
             except (OSError, IOError) as e:
@@ -134,18 +147,16 @@ def update_index(top, excluded_paths, exclude_rxs, xdev_exceptions):
             # it looks like that shouldn't be possible:  (1) When
             # "save" validates the index entry, it always reads the
             # metadata from the filesytem. (2) Metadata is only
-            # read/used from the index if hashvalid is true. (3) index
-            # always invalidates "faked" entries, because "old != new"
-            # in from_stat().
+            # read/used from the index if hashvalid is true. (3)
+            # "faked" entries will be stale(), and so we'll invalidate
+            # them below.
             meta.ctime = meta.mtime = meta.atime = 0
             meta_ofs = msw.store(meta)
-            rig.cur.from_stat(pst, meta_ofs, tstart,
-                              check_device=opt.check_device)
-            if not (rig.cur.flags & index.IX_HASHVALID):
-                if hashgen:
-                    (rig.cur.gitmode, rig.cur.sha) = hashgen(path)
-                    rig.cur.flags |= index.IX_HASHVALID
-            if opt.fake_invalid:
+            rig.cur.update_from_stat(pst, meta_ofs)
+            if stale and hashgen:
+                rig.cur.gitmode, rig.cur.sha = hashgen(path)
+                rig.cur.flags |= index.IX_HASHVALID
+            if stale:
                 rig.cur.invalidate()
             rig.cur.repack()
             rig.next()
