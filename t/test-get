@@ -228,6 +228,8 @@ def _run_get(disposition, method, item):
     global get_cases_tested
     result = ex(get_cmd + (method, item), check=False)
     get_cases_tested += 1
+    fsck = ex((bup_cmd, '-d', 'get-dest', 'fsck'), check=False)
+    wvpasseq(0, fsck.rc)
     return result
 
 def run_get(disposition, method, item, given=None):
