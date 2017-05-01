@@ -42,6 +42,8 @@ handling of metadata.
     or private key to use for the SSH connection, we recommend you use the
     `~/.ssh/config` file.
 
+    See `bup-init`(1) for more information on how to configure the server.
+
 -t, \--tree
 :   after creating the backup set, print out the git tree
     id of the resulting backup.

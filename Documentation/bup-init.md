@@ -26,6 +26,11 @@ is `~/.bup`.
     or private key to use for the SSH connection, we recommend you use the
     `~/.ssh/config` file.
 
+    The server must launch a 'bup server' shell on connect. This can be done
+    by configuring the file `~/.ssh/authorized_keys` on the server:
+
+        command="/path/to/bup server",no-port-forwarding,no-agent-forwarding,no-X11-forwarding,no-pty ssh-rsa ...
+
 
 # EXAMPLES
     bup init

@@ -237,9 +237,14 @@ Using bup
 
         bup restore -C ./dest-2 local-etc/2013-11-23-11195/etc
 
- - Make a backup to a remote server which must already have the 'bup' command
-   somewhere in its PATH (see /etc/profile, etc/environment, ~/.profile, or
-   ~/.bashrc), and be accessible via ssh.
+ - Make a backup to a remote server.
+
+   The server must be accessible via ssh, and must launch a 'bup server' shell
+   on connect. This can be done by configuring the file ~/.ssh/authorized_keys
+   on the server:
+
+        command="/path/to/bup server",no-port-forwarding,no-agent-forwarding,no-X11-forwarding,no-pty ssh-rsa ...
+
    Make sure to replace SERVERNAME with the actual hostname of your server:
 
         bup init -r SERVERNAME:path/to/remote-bup-dir
