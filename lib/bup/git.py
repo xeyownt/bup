@@ -774,6 +774,10 @@ class PackWriter:
         os.rename(self.filename + '.idx', nameprefix + '.idx')
         try:
             os.fsync(self.parentfd)
+        except OSError as e:
+            # Ignore EINVAL (*only*) since some fs don't support this (e.g. cifs).
+            if e.errno != errno.EINVAL:
+                raise
         finally:
             os.close(self.parentfd)
 
